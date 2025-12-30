@@ -62,3 +62,66 @@ export const register = async (req, res) => {
   });
 };
 
+// Initialize admin account (one-time setup)
+export const initAdmin = async (req, res) => {
+  try {
+    // Check if init secret is provided and matches
+    const initSecret = process.env.INIT_SECRET || 'CHANGE_THIS_IN_PRODUCTION';
+    const providedSecret = req.body.secret || req.query.secret;
+    
+    if (!providedSecret || providedSecret !== initSecret) {
+      console.log('Init admin attempt failed: Invalid or missing secret');
+      return res.status(401).json({ 
+        error: 'Unauthorized',
+        message: 'Invalid initialization secret'
+      });
+    }
+
+    const email = 'kutmank9@gmail.com';
+    const username = 'admin';
+    const password = 'Beka7422';
+
+    // Check if admin already exists
+    const existingAdmin = await Admin.findOne({
+      $or: [
+        { email },
+        { username }
+      ]
+    });
+
+    if (existingAdmin) {
+      console.log('Admin already exists, updating password...');
+      existingAdmin.email = email;
+      existingAdmin.username = username;
+      existingAdmin.password = password;
+      await existingAdmin.save();
+      
+      return res.json({ 
+        message: 'Admin account updated successfully',
+        username,
+        email,
+        note: 'Password has been reset'
+      });
+    }
+
+    // Create new admin
+    const admin = new Admin({
+      email,
+      username,
+      password
+    });
+    await admin.save();
+
+    console.log(`✅ Admin account created via init endpoint`);
+    res.json({ 
+      message: 'Admin account created successfully',
+      username,
+      email,
+      note: 'You can now login with these credentials'
+    });
+  } catch (error) {
+    console.error('❌ Error initializing admin:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
