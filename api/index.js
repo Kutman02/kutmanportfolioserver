@@ -1,5 +1,7 @@
 import app from '../server.js';
 
 // Vercel serverless function handler
-export default app;
+export default (req, res) => {
+  return app(req, res);
+};
 
