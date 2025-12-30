@@ -22,12 +22,26 @@ export const getTranslations = async (req, res) => {
 
 export const getTranslation = async (req, res) => {
   try {
-    const translation = await Translation.findOne({ language: req.params.language });
+    const { language } = req.params;
+    console.log(`Fetching translation for language: ${language}`);
+    
+    const translation = await Translation.findOne({ language });
+    
     if (!translation) {
-      return res.status(404).json({ error: 'Translation not found' });
+      console.log(`Translation not found for language: ${language}`);
+      // Return empty translation structure instead of 404
+      // This allows frontend to work even if translations aren't in DB yet
+      return res.json({
+        language,
+        data: {},
+        message: 'Translation not found in database, returning empty structure'
+      });
     }
+    
+    console.log(`Translation found for language: ${language}`);
     res.json(translation);
   } catch (error) {
+    console.error('Error fetching translation:', error);
     res.status(500).json({ error: error.message });
   }
 };

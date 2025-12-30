@@ -70,12 +70,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// MongoDB connection middleware for serverless (skip for health check)
+// MongoDB connection middleware for serverless (skip for health check and root)
 app.use(async (req, res, next) => {
-  // Skip MongoDB connection for health check
+  // Skip MongoDB connection for health check and root endpoint
   // Check both req.path and req.url to handle Vercel routing
   const path = req.path || req.url;
-  if (path === '/api/health' || path === '/health') {
+  if (path === '/api/health' || path === '/health' || path === '/') {
     return next();
   }
   
@@ -86,6 +86,7 @@ app.use(async (req, res, next) => {
     next();
   } catch (error) {
     console.error('MongoDB connection error in middleware:', error);
+    console.error('Request path:', path);
     if (!res.headersSent) {
       res.status(500).json({ 
         error: 'Database connection failed', 
