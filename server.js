@@ -43,7 +43,11 @@ const connectMongoDB = async () => {
     return cachedConnection;
   }
 
-  const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://admin:Beka7422@cluster0.zg2x0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+  const MONGODB_URI = process.env.MONGODB_URI;
+  
+  if (!MONGODB_URI) {
+    throw new Error('MONGODB_URI environment variable is not set. Please set it in your environment variables.');
+  }
   
   try {
     const connection = await mongoose.connect(MONGODB_URI, {
@@ -140,35 +144,43 @@ app.use((req, res) => {
 if (process.env.VERCEL !== '1' && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
   const PORT = process.env.PORT || 8081;
   
-  connectMongoDB()
-    .then(() => {
-      // Start server
-      const server = app.listen(PORT, () => {
-        console.log(`✅ Server is running on port ${PORT}`);
-        console.log(`   API: http://localhost:${PORT}/api`);
-        console.log(`   Health check: http://localhost:${PORT}/api/health`);
-      });
+  // For Render and other platforms: Start server immediately
+  // MongoDB will connect on first request via middleware
+  // This prevents server from crashing if MongoDB is temporarily unavailable
+  const server = app.listen(PORT, () => {
+    console.log(`✅ Server is running on port ${PORT}`);
+    console.log(`   API: http://localhost:${PORT}/api`);
+    console.log(`   Health check: http://localhost:${PORT}/api/health`);
+    console.log(`   MongoDB will connect on first request`);
+  });
 
-      server.on('error', (error) => {
-        if (error.code === 'EADDRINUSE') {
-          console.error(`❌ Port ${PORT} is already in use!`);
-          console.error(`   Please either:`);
-          console.error(`   1. Stop the process using port ${PORT}`);
-          console.error(`   2. Change PORT in .env file to another port (e.g., 8082)`);
-          process.exit(1);
-        } else {
-          console.error('Server error:', error);
-          process.exit(1);
-        }
-      });
-    })
-    .catch((error) => {
-      const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/portfolio';
-      console.error('❌ MongoDB connection error:', error.message);
-      console.error('   Please make sure MongoDB is running and MONGODB_URI is correct');
-      console.error(`   Current MONGODB_URI: ${MONGODB_URI}`);
+  server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`❌ Port ${PORT} is already in use!`);
+      console.error(`   Please either:`);
+      console.error(`   1. Stop the process using port ${PORT}`);
+      console.error(`   2. Change PORT in .env file to another port (e.g., 8082)`);
       process.exit(1);
-    });
+    } else {
+      console.error('Server error:', error);
+      process.exit(1);
+    }
+  });
+
+  // Optionally try to connect to MongoDB in background (non-blocking)
+  // This is just for logging - server is already running
+  if (process.env.MONGODB_URI) {
+    connectMongoDB()
+      .then(() => {
+        console.log('✅ MongoDB pre-connected (server already running)');
+      })
+      .catch((error) => {
+        console.warn('⚠️  MongoDB not available yet, will connect on first request');
+        console.warn(`   Error: ${error.message}`);
+      });
+  } else {
+    console.warn('⚠️  MONGODB_URI not set - MongoDB connection will fail on requests');
+  }
 } else {
   // For serverless: DON'T connect on module load
   // Connection will be established on first request via middleware
