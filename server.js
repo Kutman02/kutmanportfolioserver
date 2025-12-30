@@ -114,6 +114,62 @@ app.use('/api/contacts', contactRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/resume', resumeRoutes);
 
+// Root endpoint - show API information
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Portfolio Server API',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/api/health',
+      auth: {
+        login: 'POST /api/auth/login',
+        register: 'POST /api/auth/register'
+      },
+      projects: {
+        list: 'GET /api/projects',
+        get: 'GET /api/projects/:id',
+        create: 'POST /api/projects (requires auth)',
+        update: 'PUT /api/projects/:id (requires auth)',
+        delete: 'DELETE /api/projects/:id (requires auth)'
+      },
+      translations: {
+        list: 'GET /api/translations',
+        get: 'GET /api/translations/:language',
+        createOrUpdate: 'POST /api/translations (requires auth)',
+        delete: 'DELETE /api/translations/:id (requires auth)'
+      },
+      skills: {
+        list: 'GET /api/skills',
+        get: 'GET /api/skills/:id',
+        create: 'POST /api/skills (requires auth)',
+        update: 'PUT /api/skills/:id (requires auth)',
+        delete: 'DELETE /api/skills/:id (requires auth)'
+      },
+      contacts: {
+        list: 'GET /api/contacts',
+        get: 'GET /api/contacts/:id',
+        create: 'POST /api/contacts (requires auth)',
+        update: 'PUT /api/contacts/:id (requires auth)',
+        delete: 'DELETE /api/contacts/:id (requires auth)'
+      },
+      profile: {
+        get: 'GET /api/profile',
+        update: 'PUT /api/profile (requires auth)'
+      },
+      resume: {
+        get: 'GET /api/resume',
+        upload: 'POST /api/resume (requires auth)'
+      },
+      upload: {
+        image: 'POST /api/upload (requires auth)',
+        document: 'POST /api/upload-document (requires auth)'
+      }
+    },
+    mongoStatus: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -135,9 +191,25 @@ app.use((err, req, res, next) => {
   }
 });
 
-// 404 handler
+// 404 handler - improved with helpful message
 app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+  res.status(404).json({ 
+    error: 'Route not found',
+    path: req.path,
+    method: req.method,
+    message: 'The requested endpoint does not exist. Check the API documentation at the root endpoint (/) for available routes.',
+    availableEndpoints: [
+      'GET /',
+      'GET /api/health',
+      'POST /api/auth/login',
+      'GET /api/projects',
+      'GET /api/translations',
+      'GET /api/skills',
+      'GET /api/contacts',
+      'GET /api/profile',
+      'GET /api/resume'
+    ]
+  });
 });
 
 // Only start server if not in serverless environment (Vercel)
