@@ -43,7 +43,7 @@ const connectMongoDB = async () => {
     return cachedConnection;
   }
 
-  const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/portfolio';
+  const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://admin:Beka7422@cluster0.zg2x0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
   
   try {
     const connection = await mongoose.connect(MONGODB_URI, {
