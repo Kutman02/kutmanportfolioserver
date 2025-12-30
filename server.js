@@ -16,10 +16,18 @@ import contactRoutes from './routes/contacts.js';
 import profileRoutes from './routes/profile.js';
 import resumeRoutes from './routes/resume.js';
 
+// Load environment variables
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Handle __dirname for ES modules
+let __filename, __dirname;
+try {
+  __filename = fileURLToPath(import.meta.url);
+  __dirname = path.dirname(__filename);
+} catch (error) {
+  console.error('Error setting up __dirname:', error);
+  __dirname = process.cwd();
+}
 
 // MongoDB connection with caching for serverless
 let cachedConnection = null;
