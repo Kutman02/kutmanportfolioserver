@@ -244,8 +244,32 @@ if (process.env.VERCEL !== '1' && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
   // This is just for logging - server is already running
   if (process.env.MONGODB_URI) {
     connectMongoDB()
-      .then(() => {
+      .then(async () => {
         console.log('✅ MongoDB pre-connected (server already running)');
+        
+        // Auto-create admin if it doesn't exist
+        try {
+          const Admin = (await import('./models/Admin.js')).default;
+          const existingAdmin = await Admin.findOne({ username: 'admin' });
+          
+          if (!existingAdmin) {
+            console.log('🔧 No admin found, creating default admin...');
+            const admin = new Admin({
+              email: 'kutmank9@gmail.com',
+              username: 'admin',
+              password: 'Beka7422'
+            });
+            await admin.save();
+            console.log('✅ Default admin created:');
+            console.log('   Username: admin');
+            console.log('   Password: Beka7422');
+            console.log('   Email: kutmank9@gmail.com');
+          } else {
+            console.log('✅ Admin account already exists');
+          }
+        } catch (error) {
+          console.warn('⚠️  Could not check/create admin:', error.message);
+        }
       })
       .catch((error) => {
         console.warn('⚠️  MongoDB not available yet, will connect on first request');
