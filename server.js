@@ -61,7 +61,9 @@ app.use(express.urlencoded({ extended: true }));
 // MongoDB connection middleware for serverless (skip for health check)
 app.use(async (req, res, next) => {
   // Skip MongoDB connection for health check
-  if (req.path === '/api/health') {
+  // Check both req.path and req.url to handle Vercel routing
+  const path = req.path || req.url;
+  if (path === '/api/health' || path === '/health') {
     return next();
   }
   
@@ -72,15 +74,22 @@ app.use(async (req, res, next) => {
     next();
   } catch (error) {
     console.error('MongoDB connection error in middleware:', error);
-    res.status(500).json({ 
-      error: 'Database connection failed', 
-      message: error.message 
-    });
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: 'Database connection failed', 
+        message: process.env.NODE_ENV === 'production' 
+          ? 'Unable to connect to database' 
+          : error.message 
+      });
+    }
   }
 });
 
-// Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve uploaded files (only in non-serverless environments)
+// In Vercel serverless, files should be served from external storage (S3, Cloudinary, etc.)
+if (process.env.VERCEL !== '1' && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+}
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -95,7 +104,28 @@ app.use('/api/resume', resumeRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Server is running' });
+  res.json({ 
+    status: 'OK', 
+    message: 'Server is running',
+    environment: process.env.NODE_ENV || 'development',
+    mongoStatus: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
+
+// Global error handler for unhandled errors
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  if (!res.headersSent) {
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: process.env.NODE_ENV === 'production' ? 'An error occurred' : err.message
+    });
+  }
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found' });
 });
 
 // Only start server if not in serverless environment (Vercel)
@@ -132,10 +162,10 @@ if (process.env.VERCEL !== '1' && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
       process.exit(1);
     });
 } else {
-  // For serverless: connect asynchronously, don't block
-  connectMongoDB().catch((error) => {
-    console.error('Failed to connect to MongoDB:', error);
-  });
+  // For serverless: DON'T connect on module load
+  // Connection will be established on first request via middleware
+  // This prevents function crashes during cold starts
+  console.log('Serverless environment detected - MongoDB will connect on first request');
 }
 
 export default app;
